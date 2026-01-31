@@ -1,12 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
-import { RotateCcw, Sparkles, Trophy, Users, Bot } from "lucide-react";
+import { RotateCcw, Sparkles, Trophy } from "lucide-react";
 import confetti from "canvas-confetti";
-import { useAIOpponent, type Difficulty } from "@/hooks/useAIOpponent";
+import { useAIOpponent } from "@/hooks/useAIOpponent";
 import AIMessage, { type MessageType } from "./AIMessage";
 
 type Player = "X" | "O" | null;
 type Board = Player[];
-type GameMode = "pvp" | "ai";
 
 const WINNING_COMBINATIONS = [
   [0, 1, 2],
@@ -64,8 +63,6 @@ const TicTacToe = () => {
   const [scores, setScores] = useState({ X: 0, O: 0 });
   const [winningCells, setWinningCells] = useState<number[]>([]);
   const [showWinBanner, setShowWinBanner] = useState(false);
-  const [gameMode, setGameMode] = useState<GameMode>("ai");
-  const [difficulty, setDifficulty] = useState<Difficulty>("easy");
   const [aiMessage, setAiMessage] = useState<MessageType>("game_start");
   const [isAIThinking, setIsAIThinking] = useState(false);
 
@@ -85,14 +82,12 @@ const TicTacToe = () => {
 
   // AI Move Effect
   useEffect(() => {
-    if (gameMode === "ai" && currentPlayer === "O" && !winner && !isDraw) {
+    if (currentPlayer === "O" && !winner && !isDraw) {
       setIsAIThinking(true);
       setAiMessage("thinking");
 
-      const thinkingTime = difficulty === "easy" ? 500 : difficulty === "medium" ? 800 : 1200;
-
       const timer = setTimeout(() => {
-        const aiMove = getAIMove(board, difficulty, "O");
+        const aiMove = getAIMove(board, "hard", "O");
         if (aiMove !== -1) {
           const newBoard = [...board];
           newBoard[aiMove] = "O";
@@ -116,15 +111,15 @@ const TicTacToe = () => {
           }
         }
         setIsAIThinking(false);
-      }, thinkingTime);
+      }, 1200);
 
       return () => clearTimeout(timer);
     }
-  }, [currentPlayer, board, gameMode, difficulty, winner, isDraw, getAIMove, checkWinner]);
+  }, [currentPlayer, board, winner, isDraw, getAIMove, checkWinner]);
 
   const handleCellClick = (index: number) => {
     if (board[index] || winner || isAIThinking) return;
-    if (gameMode === "ai" && currentPlayer === "O") return;
+    if (currentPlayer === "O") return;
 
     const newBoard = [...board];
     newBoard[index] = currentPlayer;
@@ -138,14 +133,10 @@ const TicTacToe = () => {
         [result.winner!]: prev[result.winner!] + 1,
       }));
       setShowWinBanner(true);
-      if (gameMode === "ai") {
-        setAiMessage("win"); // Player won
-      }
+      setAiMessage("win"); // Player won
       triggerConfetti(result.winner);
     } else if (newBoard.every((cell) => cell !== null)) {
-      if (gameMode === "ai") {
-        setAiMessage("draw");
-      }
+      setAiMessage("draw");
     } else {
       setCurrentPlayer(currentPlayer === "X" ? "O" : "X");
     }
@@ -163,11 +154,6 @@ const TicTacToe = () => {
   const resetAll = () => {
     resetGame();
     setScores({ X: 0, O: 0 });
-  };
-
-  const switchGameMode = (mode: GameMode) => {
-    setGameMode(mode);
-    resetAll();
   };
 
   useEffect(() => {
@@ -189,7 +175,7 @@ const TicTacToe = () => {
             <div className="flex items-center gap-3 text-white">
               <Trophy className="w-10 h-10 animate-bounce" />
               <span className="text-3xl md:text-4xl font-bold">
-                {gameMode === "ai" ? (winner === "X" ? "You Win!" : "AI Wins!") : `${winner} Wins!`}
+                {winner === "X" ? "You Win!" : "AI Wins!"}
               </span>
               <Trophy className="w-10 h-10 animate-bounce" style={{ animationDelay: "0.2s" }} />
             </div>
@@ -209,86 +195,28 @@ const TicTacToe = () => {
         <p className="text-muted-foreground text-lg">Play to have fun! 🎮</p>
       </div>
 
-      {/* Game Mode Selector */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => switchGameMode("ai")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all ${
-            gameMode === "ai"
-              ? "bg-gradient-to-r from-game-pink to-game-sky text-white"
-              : "bg-card text-foreground hover:bg-muted"
-          }`}
-        >
-          <Bot className="w-4 h-4" />
-          vs AI
-        </button>
-        <button
-          onClick={() => switchGameMode("pvp")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all ${
-            gameMode === "pvp"
-              ? "bg-gradient-to-r from-game-pink to-game-sky text-white"
-              : "bg-card text-foreground hover:bg-muted"
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          2 Players
-        </button>
-      </div>
-
-      {/* Difficulty Selector (AI Mode only) */}
-      {gameMode === "ai" && (
-        <div className="flex gap-2 mb-6">
-          {(["easy", "medium", "hard"] as Difficulty[]).map((d) => (
-            <button
-              key={d}
-              onClick={() => {
-                setDifficulty(d);
-                resetGame();
-              }}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all capitalize ${
-                difficulty === d
-                  ? d === "easy"
-                    ? "bg-green-500 text-white"
-                    : d === "medium"
-                    ? "bg-yellow-500 text-white"
-                    : "bg-red-500 text-white"
-                  : "bg-card text-foreground hover:bg-muted"
-              }`}
-            >
-              {d}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* AI Message */}
-      {gameMode === "ai" && (
-        <div className="w-full max-w-sm mb-6">
-          <AIMessage
-            type={aiMessage}
-            difficulty={difficulty}
-            aiWins={scores.O}
-            playerWins={scores.X}
-          />
-        </div>
-      )}
+      <div className="w-full max-w-sm mb-6">
+        <AIMessage
+          type={aiMessage}
+          aiWins={scores.O}
+          playerWins={scores.X}
+        />
+      </div>
 
       {/* Score Board */}
       <div className="flex gap-8 mb-6">
         <div className={`flex flex-col items-center p-4 rounded-2xl transition-all duration-300 ${
           currentPlayer === "X" && !winner ? "bg-game-pink-light scale-105" : "bg-card"
         } ${winner === "X" ? "animate-pulse ring-4 ring-game-pink" : ""}`}>
-          <span className="text-3xl font-bold text-game-pink">
-            {gameMode === "ai" ? "You" : "X"}
-          </span>
+          <span className="text-3xl font-bold text-game-pink">You</span>
           <span className="text-2xl font-semibold text-foreground">{scores.X}</span>
         </div>
         <div className={`flex flex-col items-center p-4 rounded-2xl transition-all duration-300 ${
           currentPlayer === "O" && !winner ? "bg-game-sky-light scale-105" : "bg-card"
         } ${winner === "O" ? "animate-pulse ring-4 ring-game-sky" : ""}`}>
-          <span className="text-3xl font-bold text-game-sky">
-            {gameMode === "ai" ? "AI" : "O"}
-          </span>
+          <span className="text-3xl font-bold text-game-sky">AI</span>
           <span className="text-2xl font-semibold text-foreground">{scores.O}</span>
         </div>
       </div>
@@ -298,7 +226,7 @@ const TicTacToe = () => {
         {winner ? (
           <div className="text-2xl font-bold animate-bounce">
             <span className={winner === "X" ? "text-game-pink" : "text-game-sky"}>
-              {gameMode === "ai" ? (winner === "X" ? "You" : "AI") : winner}
+              {winner === "X" ? "You" : "AI"}
             </span>
             <span className="text-foreground"> wins! 🎉</span>
           </div>
@@ -313,7 +241,7 @@ const TicTacToe = () => {
             ) : (
               <>
                 <span className={currentPlayer === "X" ? "text-game-pink" : "text-game-sky"}>
-                  {gameMode === "ai" ? (currentPlayer === "X" ? "Your" : "AI's") : `${currentPlayer}'s`}
+                  {currentPlayer === "X" ? "Your" : "AI's"}
                 </span>
                 {" turn"}
               </>
